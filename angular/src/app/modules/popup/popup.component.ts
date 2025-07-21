@@ -19,18 +19,26 @@ export class PopupComponent implements OnInit {
       if (tab && tab.url) {
         chrome.storage.local.get({savedUrls:[]}, (result)=> {
           const savedUrls = result['savedUrls'] as string[];
+          this.checkDuplicates(savedUrls, tab);
+          savedUrls.push(tab.url!); 
+          console.log('Saved URL:', tab.url!);
+          this.saveStatus = 'Saved';
+          chrome.storage.local.set({savedUrls});
+        })
+      }
+    })
+  }
+
+  clearAll() {
+    chrome.storage.local.clear();
+  }
+
+  checkDuplicates(savedUrls, tab) {
           if (savedUrls.includes(tab.url)) {
             console.log('Duplicate URL, not saved:', tab.url);
             this.saveStatus = 'Existing';
             return;
           }
-          savedUrls.push(tab.url!); 
-          console.log('Saved URL:', tab.url!);
-          this.saveStatus = 'Existing';
-          chrome.storage.local.set({savedUrls});
-        })
-      }
-    })
   }
 
   onClick() {
