@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common'
-import { Component, Inject, signal, OnInit } from '@angular/core'
+import { Component, Inject, signal, OnInit, ChangeDetectorRef } from '@angular/core'
 import { TAB_ID } from 'src/app/app.config'
 
 @Component({
@@ -12,20 +12,33 @@ export class PopupComponent implements OnInit {
   message = signal('')
   saveStatus: ('Saved' | 'Existing'| 'None') = 'None';
 
-  constructor(@Inject(TAB_ID) readonly tabId: number) {}
+  constructor(@Inject(TAB_ID) readonly tabId: number, private cdr: ChangeDetectorRef) {}
 
   saveCurrentTab() {
     chrome.tabs.get(this.tabId, (tab) => {
       if (tab && tab.url) {
         chrome.storage.local.get({savedUrls:[]}, (result)=> {
           const savedUrls = result['savedUrls'] as string[];
-          this.checkDuplicates(savedUrls, tab);
+          if (savedUrls.includes(tab.url!)) {
+            console.log('Duplicate URL, not saved:', tab + this.saveStatus);
+            this.saveStatus = 'Existing';
+            return;
+          }
+          else {
           savedUrls.push(tab.url!); 
           console.log('Saved URL:', tab.url!);
           this.saveStatus = 'Saved';
-          chrome.storage.local.set({savedUrls});
+          chrome.storage.local.set({savedUrls});}
         })
       }
+    })
+  }
+
+  requestContent() {
+    console.log('Requesting content for tab:', this.tabId);
+    chrome.tabs.sendMessage(this.tabId, 'get-page-content', (response) => {
+      console.log(response.title);
+      console.log(response.content);
     })
   }
 
@@ -33,13 +46,13 @@ export class PopupComponent implements OnInit {
     chrome.storage.local.clear();
   }
 
-  checkDuplicates(savedUrls, tab) {
-          if (savedUrls.includes(tab.url)) {
-            console.log('Duplicate URL, not saved:', tab.url);
-            this.saveStatus = 'Existing';
-            return;
-          }
-  }
+  // checkDuplicates(savedUrls, tab) {
+  //         if (savedUrls.includes(tab)) {
+  //           console.log('Duplicate URL, not saved:', tab + this.saveStatus);
+  //           this.saveStatus = 'Existing';
+  //           return;
+  //         }
+  // }
 
   onClick() {
     this.saveCurrentTab();
@@ -54,5 +67,7 @@ export class PopupComponent implements OnInit {
 
   ngOnInit() {
     this.saveCurrentTab();
+    this.requestContent();
+    this.cdr.detectChanges();
   }
 }
